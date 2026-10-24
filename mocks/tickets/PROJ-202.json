@@ -1,0 +1,50 @@
+{
+  "id": "PROJ-202",
+  "title": "Slack notifications missing for mentions in threads",
+  "phase": "fetched",
+  "repo": "acme/notify-service",
+  "updatedAt": "2026-10-22T11:40:00.000Z",
+  "costUsdTotal": 0.42,
+  "lastRunAt": "2026-10-22T11:40:00.000Z",
+  "questions": [],
+  "topics": [],
+  "conflicts": [],
+  "changes": [
+    {
+      "id": "ch1",
+      "at": "2026-10-22T11:38:00.000Z",
+      "kind": "comment_added",
+      "text": "New comment from Priya Nair on the Jira issue describing repro steps.",
+      "sourceUrl": "https://acme.atlassian.net/browse/PROJ-202?focusedCommentId=40821"
+    }
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "source": "jira",
+      "author": "Priya Nair",
+      "at": "2026-10-22T11:38:00.000Z",
+      "summary": "Repro steps: mention a user in a thread reply, no notification is sent even though it works for top-level messages.",
+      "url": "https://acme.atlassian.net/browse/PROJ-202?focusedCommentId=40821"
+    },
+    {
+      "id": "s2",
+      "source": "slack",
+      "author": "#notify-service-eng",
+      "at": "2026-10-22T10:05:00.000Z",
+      "summary": "Thread: engineers suspect the thread-reply fan-out path skips the mention parser that the top-level path uses.",
+      "url": "https://acme.slack.com/archives/C02NOTIFY/p1761129900000100"
+    },
+    {
+      "id": "s3",
+      "source": "gitlab",
+      "author": "Marcus Webb",
+      "at": "2026-10-21T16:20:00.000Z",
+      "summary": "Draft MR: route thread replies through the same mention parser as top-level messages.",
+      "url": "https://gitlab.com/acme/notify-service/-/merge_requests/118"
+    }
+  ],
+  "brief": "",
+  "plan": "",
+  "planHash": ""
+}

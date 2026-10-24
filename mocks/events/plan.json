@@ -1,0 +1,9 @@
+[
+  { "type": "step_started", "seq": 0, "ts": "2026-10-23T14:10:00.000Z", "step": "Draft plan" },
+  { "type": "tool_call", "seq": 1, "ts": "2026-10-23T14:10:01.000Z", "tool": "llm.draft_plan", "summary": "Drafting rollout plan from the brief and open questions" },
+  { "type": "tool_call", "seq": 2, "ts": "2026-10-23T14:10:05.000Z", "tool": "fs.read_repo", "summary": "Reading repo structure to ground the plan in real file paths" },
+  { "type": "tool_denied", "seq": 3, "ts": "2026-10-23T14:10:07.000Z", "tool": "shell.exec", "reason": "Arbitrary shell execution is not permitted during planning" },
+  { "type": "cost", "seq": 4, "ts": "2026-10-23T14:10:10.000Z", "usd": 0.34, "note": "Plan step model usage" },
+  { "type": "step_finished", "seq": 5, "ts": "2026-10-23T14:10:10.500Z", "step": "Draft plan", "summary": "Plan drafted with 7 steps and a rollout diagram" },
+  { "type": "awaiting_approval", "seq": 6, "ts": "2026-10-23T14:10:11.000Z", "message": "Plan ready for review. Approve, request changes, or ask a question." }
+]

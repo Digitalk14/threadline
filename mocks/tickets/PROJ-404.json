@@ -1,0 +1,205 @@
+{
+  "id": "PROJ-404",
+  "title": "Design review: multi-tenant billing migration",
+  "phase": "plan_pending",
+  "repo": "acme/billing",
+  "updatedAt": "2026-10-23T13:50:00.000Z",
+  "costUsdTotal": 4.37,
+  "lastRunAt": "2026-10-23T13:50:00.000Z",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Can billing events be dual-written during the migration, or does the event schema need to change first?",
+      "askedBy": "Elena Soto",
+      "waitingOn": "Data platform team",
+      "source": "jira",
+      "sourceUrl": "https://acme.atlassian.net/browse/PROJ-404?focusedCommentId=41210",
+      "status": "open",
+      "firstSeenAt": "2026-10-20T10:00:00.000Z",
+      "updatedAt": "2026-10-23T09:00:00.000Z"
+    },
+    {
+      "id": "q2",
+      "text": "Who owns the backfill script for existing single-tenant billing rows?",
+      "askedBy": "Marcus Webb",
+      "waitingOn": "Elena Soto",
+      "source": "slack",
+      "sourceUrl": "https://acme.slack.com/archives/C04BILLING/p1761300000000300",
+      "status": "answered",
+      "firstSeenAt": "2026-10-19T14:20:00.000Z",
+      "updatedAt": "2026-10-20T11:15:00.000Z",
+      "answer": {
+        "text": "Marcus Webb owns the backfill script for existing single-tenant rows.",
+        "by": "Marcus Webb",
+        "at": "2026-10-20T11:15:00.000Z",
+        "sourceUrl": "https://acme.slack.com/archives/C04BILLING/p1761300000000300"
+      }
+    },
+    {
+      "id": "q3",
+      "text": "Should the migration ship behind a feature flag per tenant, or as one global cutover?",
+      "askedBy": "Sana Patel",
+      "waitingOn": "Elena Soto",
+      "source": "gitlab",
+      "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91044",
+      "status": "superseded",
+      "firstSeenAt": "2026-10-18T09:00:00.000Z",
+      "updatedAt": "2026-10-21T16:30:00.000Z"
+    },
+    {
+      "id": "q4",
+      "text": "Is a per-tenant flag now settled, replacing the global-cutover question above?",
+      "askedBy": "Elena Soto",
+      "waitingOn": "Sana Patel",
+      "source": "gitlab",
+      "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91512",
+      "status": "answered",
+      "firstSeenAt": "2026-10-21T16:30:00.000Z",
+      "updatedAt": "2026-10-22T08:00:00.000Z",
+      "answer": {
+        "text": "Yes — the per-tenant feature flag is settled, replacing the global-cutover question.",
+        "by": "Elena Soto",
+        "at": "2026-10-22T08:00:00.000Z",
+        "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91512"
+      }
+    }
+  ],
+  "topics": [
+    {
+      "id": "t1",
+      "title": "Rollout strategy",
+      "status": "decided",
+      "summary": "Team settled on a per-tenant feature flag rollout after the initial global-cutover proposal raised rollback concerns.",
+      "decisions": [
+        {
+          "text": "Ship behind a per-tenant feature flag instead of one global cutover, to allow incremental rollback.",
+          "by": "Elena Soto",
+          "at": "2026-10-22T08:00:00.000Z",
+          "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91512"
+        }
+      ],
+      "openQuestionIds": ["q3", "q4"]
+    },
+    {
+      "id": "t2",
+      "title": "Backfill ownership",
+      "status": "decided",
+      "summary": "Data platform team confirmed Marcus Webb owns the backfill script.",
+      "decisions": [
+        {
+          "text": "Marcus Webb owns the backfill script for existing single-tenant rows.",
+          "by": "Marcus Webb",
+          "at": "2026-10-20T11:15:00.000Z",
+          "sourceUrl": "https://acme.slack.com/archives/C04BILLING/p1761300000000300"
+        }
+      ],
+      "openQuestionIds": ["q2"]
+    },
+    {
+      "id": "t3",
+      "title": "Dual-write schema compatibility",
+      "status": "open",
+      "summary": "Still waiting on the data platform team to confirm whether the billing event schema supports dual-writes as-is.",
+      "decisions": [],
+      "openQuestionIds": ["q1"]
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "c1",
+      "text": "The ticket describes a single global cutover, but the latest MR discussion settled on a per-tenant feature flag rollout.",
+      "ticketSays": "Migrate all tenants to the new billing schema in one coordinated release window.",
+      "sourceSays": "Roll out behind a per-tenant feature flag so tenants can be migrated incrementally and rolled back independently.",
+      "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91512"
+    },
+    {
+      "id": "c2",
+      "text": "The ticket assumes the billing event schema is unchanged, but Slack discussion suggests a schema version bump is required for dual-writes.",
+      "ticketSays": "No changes to the billing event schema are required for this migration.",
+      "sourceSays": "Dual-writing during migration requires bumping the billing event schema to v3 to carry the new tenant_id field.",
+      "sourceUrl": "https://acme.slack.com/archives/C04BILLING/p1761300000000450"
+    }
+  ],
+  "changes": [
+    {
+      "id": "ch1",
+      "at": "2026-10-23T13:50:00.000Z",
+      "kind": "status_changed",
+      "text": "Ticket moved from briefed to plan_pending after the rollout plan was drafted.",
+      "sourceUrl": "https://acme.atlassian.net/browse/PROJ-404"
+    },
+    {
+      "id": "ch2",
+      "at": "2026-10-23T09:00:00.000Z",
+      "kind": "comment_added",
+      "text": "Elena Soto asked whether billing events can be dual-written without a schema change.",
+      "sourceUrl": "https://acme.atlassian.net/browse/PROJ-404?focusedCommentId=41210"
+    },
+    {
+      "id": "ch3",
+      "at": "2026-10-22T08:00:00.000Z",
+      "kind": "question_answered",
+      "text": "Per-tenant feature flag rollout confirmed, superseding the earlier global-cutover question.",
+      "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91512"
+    },
+    {
+      "id": "ch4",
+      "at": "2026-10-21T16:30:00.000Z",
+      "kind": "mr_updated",
+      "text": "MR #482 updated with a per-tenant feature flag proposal, superseding the global-cutover discussion.",
+      "sourceUrl": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91044"
+    },
+    {
+      "id": "ch5",
+      "at": "2026-10-20T11:15:00.000Z",
+      "kind": "question_answered",
+      "text": "Marcus Webb confirmed as owner of the backfill script.",
+      "sourceUrl": "https://acme.slack.com/archives/C04BILLING/p1761300000000300"
+    }
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "source": "jira",
+      "author": "Elena Soto",
+      "at": "2026-10-23T09:00:00.000Z",
+      "summary": "Asked whether billing events can be dual-written during the migration without a schema change.",
+      "url": "https://acme.atlassian.net/browse/PROJ-404?focusedCommentId=41210"
+    },
+    {
+      "id": "s2",
+      "source": "slack",
+      "author": "#billing-platform",
+      "at": "2026-10-23T09:05:00.000Z",
+      "summary": "Thread: dual-writing requires bumping the billing event schema to v3 to carry tenant_id.",
+      "url": "https://acme.slack.com/archives/C04BILLING/p1761300000000450"
+    },
+    {
+      "id": "s3",
+      "source": "slack",
+      "author": "#billing-platform",
+      "at": "2026-10-20T11:15:00.000Z",
+      "summary": "Marcus Webb volunteers to own the backfill script for existing single-tenant rows.",
+      "url": "https://acme.slack.com/archives/C04BILLING/p1761300000000300"
+    },
+    {
+      "id": "s4",
+      "source": "gitlab",
+      "author": "Sana Patel",
+      "at": "2026-10-18T09:00:00.000Z",
+      "summary": "Raised whether the migration should ship as one global cutover or per-tenant.",
+      "url": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91044"
+    },
+    {
+      "id": "s5",
+      "source": "gitlab",
+      "author": "Elena Soto",
+      "at": "2026-10-22T08:00:00.000Z",
+      "summary": "Settled on a per-tenant feature flag rollout to allow incremental rollback.",
+      "url": "https://gitlab.com/acme/billing/-/merge_requests/482#note_91512"
+    }
+  ],
+  "brief": "## Summary\n\nMigrate billing records to a multi-tenant schema so a single billing event stream can serve all tenants instead of one database per tenant.\n\n## Decisions so far\n\n- Rollout ships behind a per-tenant feature flag (not a single global cutover).\n- Marcus Webb owns the backfill script for existing single-tenant rows.\n\n## Still open\n\n- Whether the billing event schema needs a version bump to support dual-writes during migration.\n\n## Conflicts to resolve\n\nThe ticket description has not been updated to reflect the per-tenant rollout decision or the likely schema version bump. See the Overview tab for details.\n",
+  "plan": "## Rollout plan\n\n```mermaid\nflowchart TD\n  A[\"Add tenant_id column (nullable)\"] --> B[\"Backfill existing rows\"]\n  B --> C[\"Bump billing event schema to v3\"]\n  C --> D[\"Dual-write new billing events\"]\n  D --> E[\"Verify parity report per tenant\"]\n  E --> F[\"Enable per-tenant feature flag\"]\n  F --> G[\"Remove legacy single-tenant path\"]\n```\n\n### Steps\n\n1. Add a nullable `tenant_id` column to the billing tables.\n2. Run the backfill script (owner: Marcus Webb) against existing single-tenant rows.\n3. Bump the billing event schema to v3 to carry `tenant_id`.\n4. Start dual-writing new billing events to both the legacy and multi-tenant paths.\n5. Run a parity report per tenant before enabling the flag for that tenant.\n6. Enable the per-tenant feature flag once parity is confirmed.\n7. Remove the legacy single-tenant code path after all tenants are migrated.\n\n### Risks\n\n- Dual-write window increases write latency; needs a load test before enabling broadly.\n- Backfill script must be idempotent in case it needs to be re-run after a schema bump.\n",
+  "planHash": "sha256:9f2a7c3e1b8d4f6072c4e1a8b3d5f9012c7e4a6b8d3f1e9c0a7b5d2f8e4c1a6b"
+}

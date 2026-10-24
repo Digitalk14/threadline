@@ -1,0 +1,128 @@
+{
+  "id": "PROJ-303",
+  "title": "Investigate flaky checkout integration tests",
+  "phase": "briefed",
+  "repo": "acme/checkout",
+  "updatedAt": "2026-10-23T08:05:00.000Z",
+  "costUsdTotal": 1.85,
+  "lastRunAt": "2026-10-23T08:05:00.000Z",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Should we quarantine the flaky tests now or block merges until they're fixed?",
+      "askedBy": "Devon Lee",
+      "waitingOn": "Eng manager (Sana Patel)",
+      "source": "slack",
+      "sourceUrl": "https://acme.slack.com/archives/C03CHKOUT/p1761210000000200",
+      "status": "open",
+      "firstSeenAt": "2026-10-22T15:00:00.000Z",
+      "updatedAt": "2026-10-22T15:00:00.000Z"
+    },
+    {
+      "id": "q2",
+      "text": "Is the flakiness isolated to the staging payment gateway stub, or does it reproduce against the real sandbox?",
+      "askedBy": "Sana Patel",
+      "waitingOn": "Devon Lee",
+      "source": "jira",
+      "sourceUrl": "https://acme.atlassian.net/browse/PROJ-303?focusedCommentId=40930",
+      "status": "answered",
+      "firstSeenAt": "2026-10-21T12:00:00.000Z",
+      "updatedAt": "2026-10-22T09:30:00.000Z",
+      "answer": {
+        "text": "Confirmed: it's isolated to the staging payment gateway stub, which drops ~2% of webhook callbacks under load.",
+        "by": "Sana Patel",
+        "at": "2026-10-22T09:30:00.000Z",
+        "sourceUrl": "https://acme.atlassian.net/browse/PROJ-303?focusedCommentId=40930"
+      }
+    },
+    {
+      "id": "q3",
+      "text": "Do we need a new CI runner class with more memory to stop the timeouts?",
+      "askedBy": "Marcus Webb",
+      "waitingOn": "Platform team",
+      "source": "gitlab",
+      "sourceUrl": "https://gitlab.com/acme/checkout/-/merge_requests/301#note_88210",
+      "status": "open",
+      "firstSeenAt": "2026-10-23T07:40:00.000Z",
+      "updatedAt": "2026-10-23T07:40:00.000Z"
+    }
+  ],
+  "topics": [
+    {
+      "id": "t1",
+      "title": "Root cause of checkout test flakiness",
+      "status": "decided",
+      "summary": "Confirmed the flakiness reproduces only against the staging payment gateway stub, which drops ~2% of webhook callbacks under load.",
+      "decisions": [
+        {
+          "text": "Treat the staging stub's dropped webhooks as the root cause; file a separate ticket against the platform team's stub service.",
+          "by": "Sana Patel",
+          "at": "2026-10-22T09:30:00.000Z",
+          "sourceUrl": "https://acme.atlassian.net/browse/PROJ-303?focusedCommentId=40930"
+        }
+      ],
+      "openQuestionIds": ["q2"]
+    },
+    {
+      "id": "t2",
+      "title": "Short-term mitigation for CI",
+      "status": "open",
+      "summary": "Team is split between quarantining the flaky specs now versus blocking merges until the stub fix lands.",
+      "decisions": [],
+      "openQuestionIds": ["q1", "q3"]
+    }
+  ],
+  "conflicts": [],
+  "changes": [
+    {
+      "id": "ch1",
+      "at": "2026-10-23T08:05:00.000Z",
+      "kind": "mr_updated",
+      "text": "Marcus Webb pushed a new commit retrying the flaky suite with verbose webhook logging.",
+      "sourceUrl": "https://gitlab.com/acme/checkout/-/merge_requests/301"
+    },
+    {
+      "id": "ch2",
+      "at": "2026-10-23T07:40:00.000Z",
+      "kind": "question_added",
+      "text": "New open question raised about CI runner memory.",
+      "sourceUrl": "https://gitlab.com/acme/checkout/-/merge_requests/301#note_88210"
+    },
+    {
+      "id": "ch3",
+      "at": "2026-10-22T09:30:00.000Z",
+      "kind": "question_answered",
+      "text": "Sana Patel confirmed the flakiness is isolated to the staging stub.",
+      "sourceUrl": "https://acme.atlassian.net/browse/PROJ-303?focusedCommentId=40930"
+    }
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "source": "jira",
+      "author": "Sana Patel",
+      "at": "2026-10-22T09:30:00.000Z",
+      "summary": "Confirmed: flakiness is isolated to the staging payment gateway stub dropping webhook callbacks under load.",
+      "url": "https://acme.atlassian.net/browse/PROJ-303?focusedCommentId=40930"
+    },
+    {
+      "id": "s2",
+      "source": "slack",
+      "author": "#checkout-eng",
+      "at": "2026-10-22T15:00:00.000Z",
+      "summary": "Thread debating whether to quarantine flaky specs now or block merges until fixed.",
+      "url": "https://acme.slack.com/archives/C03CHKOUT/p1761210000000200"
+    },
+    {
+      "id": "s3",
+      "source": "gitlab",
+      "author": "Marcus Webb",
+      "at": "2026-10-23T08:05:00.000Z",
+      "summary": "MR adding verbose webhook logging to the flaky checkout integration suite.",
+      "url": "https://gitlab.com/acme/checkout/-/merge_requests/301"
+    }
+  ],
+  "brief": "## Summary\n\nCheckout integration tests (`checkout.spec.ts`) have been flaky for the past week, failing roughly 1 in 15 CI runs with payment-webhook timeout errors.\n\n## Root cause\n\nConfirmed against the staging payment gateway stub: under load, the stub silently drops about 2% of webhook callbacks, which the test suite interprets as a timeout.\n\n## Open items\n\n- Whether to quarantine the flaky specs now or block merges until the stub is fixed.\n- Whether a larger CI runner class would also help with intermittent timeouts.\n\n## Links\n\n- [MR #301](https://gitlab.com/acme/checkout/-/merge_requests/301) adds verbose webhook logging for further diagnosis.\n",
+  "plan": "",
+  "planHash": ""
+}

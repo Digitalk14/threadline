@@ -1,0 +1,8 @@
+[
+  { "type": "step_started", "seq": 0, "ts": "2026-10-23T14:05:00.000Z", "step": "Synthesize brief" },
+  { "type": "tool_call", "seq": 1, "ts": "2026-10-23T14:05:01.000Z", "tool": "llm.summarize", "summary": "Drafting brief from collected sources" },
+  { "type": "warning", "seq": 2, "ts": "2026-10-23T14:05:04.000Z", "message": "Two Jira comments were edited after the last fetch; re-reading the latest versions." },
+  { "type": "tool_call", "seq": 3, "ts": "2026-10-23T14:05:05.000Z", "tool": "llm.extract_questions", "summary": "Extracting open questions and conflicts from sources" },
+  { "type": "cost", "seq": 4, "ts": "2026-10-23T14:05:09.000Z", "usd": 0.21, "note": "Brief step model usage" },
+  { "type": "step_finished", "seq": 5, "ts": "2026-10-23T14:05:09.500Z", "step": "Synthesize brief", "summary": "Brief drafted with 3 open questions and 1 conflict" }
+]

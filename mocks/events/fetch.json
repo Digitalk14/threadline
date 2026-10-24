@@ -1,0 +1,8 @@
+[
+  { "type": "step_started", "seq": 0, "ts": "2026-10-23T14:00:00.000Z", "step": "Fetch sources" },
+  { "type": "tool_call", "seq": 1, "ts": "2026-10-23T14:00:01.000Z", "tool": "jira.get_issue", "summary": "Fetching ticket fields and comments from Jira" },
+  { "type": "tool_call", "seq": 2, "ts": "2026-10-23T14:00:03.000Z", "tool": "slack.search_threads", "summary": "Searching linked Slack channels for this ticket ID" },
+  { "type": "tool_call", "seq": 3, "ts": "2026-10-23T14:00:05.000Z", "tool": "gitlab.search_merge_requests", "summary": "Searching GitLab for merge requests referencing this ticket ID" },
+  { "type": "cost", "seq": 4, "ts": "2026-10-23T14:00:06.000Z", "usd": 0.06, "note": "Fetch step tool usage" },
+  { "type": "step_finished", "seq": 5, "ts": "2026-10-23T14:00:06.500Z", "step": "Fetch sources", "summary": "Collected sources from Jira, Slack, and GitLab" }
+]
