@@ -1,29 +1,99 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  type HookCallback,
+  type SDKResultMessage,
+} from "@anthropic-ai/claude-agent-sdk";
+import { z } from "zod";
+import { toEvents } from "./events";
 
-interface agentInput {
-  prompt: string;
-  systemPrompt: string;
-  allowedTools: string[];
-  model: string;
-  maxTurns: number;
-  budgetUsd: number;
-  cwd?: string;
-  resumeSessionId?: string;
-}
+export const AgentInputSchema = z.object({
+  prompt: z.string().min(1),
+  systemPrompt: z.string().min(1),
+  allowedTools: z.array(z.string().min(1)).nonempty(),
+  model: z.string().min(1),
+  maxTurns: z.number().int().positive().max(50),
+  budgetUsd: z.number().positive().max(0.5).default(0.5),
+  cwd: z.string().optional(),
+  resumeSessionId: z.string().optional(),
+});
+export type AgentInput = z.infer<typeof AgentInputSchema>;
 
 interface agentCTX {
-  emit: (event: string) => void;
+  emit: (event: any) => void;
   abortController: AbortController;
 }
 
+export interface Denial {
+  toolName: string;
+  reason: string;
+}
+
+export interface RunResult {
+  text: string;
+  sessionId: string;
+  costUsd: number;
+  numTurns: number;
+  denials: Denial[];
+}
+
+export class AgentRunError extends Error {
+  constructor(
+    readonly reason: string,
+    readonly costUsd: number,
+    readonly sessionId?: string,
+  ) {
+    super(reason);
+    this.name = "AgentRunError";
+  }
+}
+
+const SAFE_INPUT_KEYS = ["file_path", "path", "pattern", "issueKey"] as const;
+
+export function pickSafeToolInput(raw: unknown): Record<string, string> {
+  if (typeof raw !== "object" || raw === null) return {};
+  const out: Record<string, string> = {};
+  for (const k of SAFE_INPUT_KEYS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (typeof v === "string") out[k] = v.slice(0, 200);
+  }
+  return out;
+}
+
 export const runAgent = async (
-  input: agentInput,
+  rawInput: unknown,
   ctx: agentCTX,
   queryFn: typeof query = query,
-): Promise<any> => {
+): Promise<RunResult> => {
+  const input = AgentInputSchema.parse(rawInput);
+
+  const denials: Denial[] = [];
+  const allowed = new Set(input.allowedTools);
+
+  const preToolUse: HookCallback = async (hookInput) => {
+    if (hookInput.hook_event_name !== "PreToolUse") return { continue: true };
+    const toolName = hookInput.tool_name;
+    if (!allowed.has(toolName)) {
+      const reason = `Tool ${toolName} is not in allowlist`;
+      denials.push({ toolName, reason });
+      ctx.emit({ type: "tool_denied", toolName, reason });
+      return {
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: reason,
+        },
+      };
+    }
+    ctx.emit({
+      type: "tool_call",
+      toolName,
+      input: pickSafeToolInput(hookInput.tool_input),
+    });
+    return { continue: true };
+  };
   const agentStream = queryFn({
     prompt: input.prompt,
-    
+
     options: {
       systemPrompt: input.systemPrompt,
       allowedTools: input.allowedTools,
@@ -36,26 +106,47 @@ export const runAgent = async (
       permissionMode: "dontAsk",
       settingSources: [],
       tools: input.allowedTools,
-      hooks: {
-        PreToolUse: [
-          {
-            hooks: [
-              async (input) => {
-                ctx.emit(input.hook_event_name);
-                return { continue: true };
-              },
-            ],
-          },
-        ],
-      },
+      hooks: { PreToolUse: [{ matcher: "", hooks: [preToolUse] }] },
     },
   });
-
-  let lastMessage;
-  for await (const message of agentStream) {
-    ctx.emit(message.type);
-    lastMessage = message;
+  let lastResult: SDKResultMessage | undefined;
+  try {
+    for await (const message of agentStream) {
+      for (const ev of toEvents(message)) ctx.emit(ev);
+      if (message.type === "result") lastResult = message;
+    }
+  } catch (err) {
+    if (ctx.abortController.signal.aborted) {
+      ctx.emit({ type: "run_cancelled" });
+      throw new AgentRunError("cancelled", lastResult?.total_cost_usd ?? 0);
+    }
+    ctx.emit({ type: "run_failed", reason: "sdk_error" });
+    throw err;
   }
-
-  return lastMessage;
+  if (lastResult?.subtype === "error_max_budget_usd") {
+    ctx.emit({
+      type: "run_failed",
+      reason: "budget_exceeded",
+      costUsd: lastResult.total_cost_usd,
+    });
+    throw new AgentRunError(
+      "budget_exceeded",
+      lastResult.total_cost_usd,
+      lastResult.session_id,
+    );
+  }
+  if (lastResult?.subtype !== "success") {
+    throw new AgentRunError(
+      lastResult?.subtype ?? "no_result",
+      lastResult?.total_cost_usd ?? 0,
+      lastResult?.session_id,
+    );
+  }
+  return {
+    text: lastResult.result,
+    sessionId: lastResult.session_id,
+    costUsd: lastResult.total_cost_usd,
+    numTurns: lastResult.num_turns,
+    denials,
+  };
 };
