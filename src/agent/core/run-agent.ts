@@ -20,19 +20,25 @@ export const runAgent = async (
   input: agentInput,
   ctx: agentCTX,
 ): Promise<any> => {
-  const prompt = input.prompt;
-
   const agentStream = query({
-    prompt,
+    prompt: input.prompt,
     options: {
-      model: input.model,
-      cwd: input.cwd,
+      systemPrompt: input.systemPrompt,
       allowedTools: input.allowedTools,
+      model: input.model,
       maxTurns: input.maxTurns,
       maxBudgetUsd: input.budgetUsd,
-      resumeSessionAt: input.resumeSessionId,
+      cwd: input.cwd,
+      resume: input.resumeSessionId,
+      abortController: ctx.abortController,
     },
   });
 
-  return agentStream;
+  let lastMessage;
+  for await (const message of agentStream) {
+    ctx.emit(message.type);
+    lastMessage = message;
+  }
+
+  return lastMessage;
 };
