@@ -19,9 +19,11 @@ interface agentCTX {
 export const runAgent = async (
   input: agentInput,
   ctx: agentCTX,
+  queryFn: typeof query = query,
 ): Promise<any> => {
-  const agentStream = query({
+  const agentStream = queryFn({
     prompt: input.prompt,
+    
     options: {
       systemPrompt: input.systemPrompt,
       allowedTools: input.allowedTools,
@@ -31,6 +33,21 @@ export const runAgent = async (
       cwd: input.cwd,
       resume: input.resumeSessionId,
       abortController: ctx.abortController,
+      permissionMode: "dontAsk",
+      settingSources: [],
+      tools: input.allowedTools,
+      hooks: {
+        PreToolUse: [
+          {
+            hooks: [
+              async (input) => {
+                ctx.emit(input.hook_event_name);
+                return { continue: true };
+              },
+            ],
+          },
+        ],
+      },
     },
   });
 
