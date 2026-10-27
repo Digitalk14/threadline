@@ -4,7 +4,7 @@ import {
   type SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { toEvents } from "./events";
+import { toEvents, type AgentEvent } from "./events";
 
 export const AgentInputSchema = z.object({
   prompt: z.string().min(1),
@@ -19,7 +19,7 @@ export const AgentInputSchema = z.object({
 export type AgentInput = z.infer<typeof AgentInputSchema>;
 
 interface agentCTX {
-  emit: (event: any) => void;
+  emit: (event: AgentEvent) => void;
   abortController: AbortController;
 }
 
@@ -34,6 +34,8 @@ export interface RunResult {
   costUsd: number;
   numTurns: number;
   denials: Denial[];
+  structuredOutput?: unknown;
+  durationMs: number;
 }
 
 export class AgentRunError extends Error {
@@ -118,10 +120,26 @@ export const runAgent = async (
   } catch (err) {
     if (ctx.abortController.signal.aborted) {
       ctx.emit({ type: "run_cancelled" });
-      throw new AgentRunError("cancelled", lastResult?.total_cost_usd ?? 0);
+      throw new AgentRunError(
+        "cancelled",
+        lastResult?.total_cost_usd ?? 0,
+        lastResult?.session_id,
+      );
     }
-    ctx.emit({ type: "run_failed", reason: "sdk_error" });
+    ctx.emit({
+      type: "run_failed",
+      reason: "sdk_error",
+      costUsd: lastResult?.total_cost_usd,
+    });
     throw err;
+  }
+  if (ctx.abortController.signal.aborted) {
+    ctx.emit({ type: "run_cancelled" });
+    throw new AgentRunError(
+      "cancelled",
+      lastResult?.total_cost_usd ?? 0,
+      lastResult?.session_id,
+    );
   }
   if (lastResult?.subtype === "error_max_budget_usd") {
     ctx.emit({
@@ -136,17 +154,19 @@ export const runAgent = async (
     );
   }
   if (lastResult?.subtype !== "success") {
-    throw new AgentRunError(
-      lastResult?.subtype ?? "no_result",
-      lastResult?.total_cost_usd ?? 0,
-      lastResult?.session_id,
-    );
+    const reason = lastResult?.subtype ?? "no_result";
+    const costUsd = lastResult?.total_cost_usd ?? 0;
+    ctx.emit({ type: "run_failed", reason, costUsd });
+    throw new AgentRunError(reason, costUsd, lastResult?.session_id);
   }
+  
   return {
     text: lastResult.result,
     sessionId: lastResult.session_id,
     costUsd: lastResult.total_cost_usd,
     numTurns: lastResult.num_turns,
     denials,
+    structuredOutput: lastResult.structured_output,
+    durationMs: lastResult.duration_ms,
   };
 };
