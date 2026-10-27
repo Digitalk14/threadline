@@ -179,6 +179,23 @@ describe("runAgent", () => {
     expect(options?.abortController).toBe(c.abortController);
     expect(options?.hooks?.PreToolUse).toHaveLength(1);
   });
+  it("init → run_started с составом инструментов и MCP", async () => {
+    const c = ctx();
+    const init = {
+      type: "system",
+      subtype: "init",
+      session_id: "s1",
+      tools: ["Read"],
+      mcp_servers: [],
+    } as unknown as SDKMessage;
+    await runAgent(baseInput, c, fakeQuery([init, result()]));
+    expect(c.emit).toHaveBeenCalledWith({
+      type: "run_started",
+      sessionId: "s1",
+      tools: ["Read"],
+      mcpServerCount: 0,
+    });
+  });
   it("успех → run_finished", async () => {
     const c = ctx();
     await runAgent(baseInput, c, fakeQuery([result()]));

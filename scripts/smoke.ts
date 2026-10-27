@@ -1,4 +1,4 @@
-import { AgentEvent } from "@/agent/core/events";
+import type { AgentEvent } from "../src/agent/core/events";
 import { AgentRunError, runAgent } from "../src/agent/core/run-agent";
 
 async function main() {
@@ -17,7 +17,7 @@ async function main() {
       maxTurns: 2,
       budgetUsd: 0.02,
     },
-    { emit: (e) => console.log(JSON.stringify(e)), abortController: ac },
+    { emit, abortController: ac },
   );
   if (!started || started.mcpServerCount !== 0)
     throw new Error("smoke: MCP servers must be empty");

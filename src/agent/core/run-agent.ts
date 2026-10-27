@@ -79,7 +79,7 @@ export const runAgent = async (
   };
   const onSubagentStop: HookCallback = async (h) => {
     if (h.hook_event_name === "SubagentStop") {
-      ctx.emit({ type: "subagent_done", name: h.agent_type ?? h.agent_id });
+      ctx.emit({ type: "subagent_done", name: h.agent_type });
     }
     return { continue: true };
   };
