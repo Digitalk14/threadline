@@ -2,7 +2,12 @@ import { z } from "zod";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 export const AgentEventSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("run_started"), sessionId: z.string() }),
+  z.object({
+    type: z.literal("run_started"),
+    sessionId: z.string(),
+    tools: z.array(z.string()),
+    mcpServerCount: z.number().int(),
+  }),
   z.object({
     type: z.literal("tool_call"),
     toolName: z.string(),
@@ -38,7 +43,14 @@ export function toEvents(m: SDKMessage): AgentEvent[] {
   switch (m.type) {
     case "system":
       return m.subtype === "init"
-        ? [{ type: "run_started", sessionId: m.session_id }]
+        ? [
+            {
+              type: "run_started",
+              sessionId: m.session_id,
+              tools: m.tools,
+              mcpServerCount: m.mcp_servers.length,
+            },
+          ]
         : [];
     case "assistant":
       return [];

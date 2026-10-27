@@ -71,6 +71,19 @@ export const runAgent = async (
   const denials: Denial[] = [];
   const allowed = new Set(input.allowedTools);
 
+  const onSubagentStart: HookCallback = async (h) => {
+    if (h.hook_event_name === "SubagentStart") {
+      ctx.emit({ type: "subagent_started", name: h.agent_type });
+    }
+    return { continue: true };
+  };
+  const onSubagentStop: HookCallback = async (h) => {
+    if (h.hook_event_name === "SubagentStop") {
+      ctx.emit({ type: "subagent_done", name: h.agent_type ?? h.agent_id });
+    }
+    return { continue: true };
+  };
+
   const preToolUse: HookCallback = async (hookInput) => {
     if (hookInput.hook_event_name !== "PreToolUse") return { continue: true };
     const toolName = hookInput.tool_name;
@@ -108,7 +121,11 @@ export const runAgent = async (
       permissionMode: "dontAsk",
       settingSources: [],
       tools: input.allowedTools,
-      hooks: { PreToolUse: [{ matcher: "", hooks: [preToolUse] }] },
+      hooks: {
+        PreToolUse: [{ matcher: "", hooks: [preToolUse] }],
+        SubagentStart: [{ hooks: [onSubagentStart] }],
+        SubagentStop: [{ hooks: [onSubagentStop] }],
+      },
       mcpServers: {},
     },
   });
