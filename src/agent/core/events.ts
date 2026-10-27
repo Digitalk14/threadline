@@ -14,10 +14,17 @@ export const AgentEventSchema = z.discriminatedUnion("type", [
     reason: z.string(),
   }),
   z.object({
-    type: z.literal("run_completed"),
+    type: z.literal("cost"),
+    usd: z.number(),
+    note: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal("run_finished"),
     costUsd: z.number(),
     numTurns: z.number(),
   }),
+  z.object({ type: z.literal("subagent_started"), name: z.string() }),
+  z.object({ type: z.literal("subagent_done"), name: z.string() }),
   z.object({
     type: z.literal("run_failed"),
     reason: z.string(),

@@ -109,6 +109,7 @@ export const runAgent = async (
       settingSources: [],
       tools: input.allowedTools,
       hooks: { PreToolUse: [{ matcher: "", hooks: [preToolUse] }] },
+      mcpServers: {},
     },
   });
   let lastResult: SDKResultMessage | undefined;
@@ -159,7 +160,11 @@ export const runAgent = async (
     ctx.emit({ type: "run_failed", reason, costUsd });
     throw new AgentRunError(reason, costUsd, lastResult?.session_id);
   }
-  
+  ctx.emit({
+    type: "run_finished",
+    costUsd: lastResult.total_cost_usd,
+    numTurns: lastResult.num_turns,
+  });
   return {
     text: lastResult.result,
     sessionId: lastResult.session_id,

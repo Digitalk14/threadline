@@ -78,4 +78,20 @@ describe("runAgent", () => {
     await expect(runAgent({ ...baseInput, allowedTools: [] }, ctx(), fakeQuery([])))
       .rejects.toThrow();
   });
+  it("передаёт безопасные дефолты в query", async () => {
+    const spy = vi.fn(fakeQuery([result()]));
+    await runAgent(baseInput, ctx(), spy as unknown as typeof query);
+    expect(spy.mock.calls[0][0].options).toMatchObject({
+      permissionMode: "dontAsk",
+      settingSources: [],
+      mcpServers: {},
+      tools: ["Read"],
+      maxBudgetUsd: 0.5,
+    });
+  });
+  it("успех → run_finished", async () => {
+    const c = ctx();
+    await runAgent(baseInput, c, fakeQuery([result()]));
+    expect(c.emit).toHaveBeenLastCalledWith({ type: "run_finished", costUsd: 0.01, numTurns: 1 });
+  });
 });
