@@ -4,6 +4,13 @@ import {
   type SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import { getAllowlist, STEPS } from "../tools/allowlist";
+import {
+  createToolServer,
+  mcpToolName,
+  registryNameFromMcp,
+  SERVER_NAME,
+} from "../tools/mcp-server";
 import { toEvents, type AgentEvent } from "./events";
 
 export const AgentInputSchema = z.object({
@@ -15,6 +22,7 @@ export const AgentInputSchema = z.object({
   budgetUsd: z.number().positive().max(0.5).default(0.5),
   cwd: z.string().optional(),
   resumeSessionId: z.string().optional(),
+  step: z.enum(STEPS),
 });
 export type AgentInput = z.infer<typeof AgentInputSchema>;
 
@@ -69,7 +77,13 @@ export const runAgent = async (
   const input = AgentInputSchema.parse(rawInput);
 
   const denials: Denial[] = [];
-  const allowed = new Set(input.allowedTools);
+  const stepTools = getAllowlist(input.step);
+  const stepToolNames = new Set(stepTools.map((agentTool) => agentTool.name));
+  const builtinAllowed = new Set(input.allowedTools);
+  const allowedTools = [
+    ...input.allowedTools,
+    ...stepTools.map((agentTool) => mcpToolName(agentTool.name)),
+  ];
 
   const onSubagentStart: HookCallback = async (h) => {
     if (h.hook_event_name === "SubagentStart") {
@@ -87,8 +101,16 @@ export const runAgent = async (
   const preToolUse: HookCallback = async (hookInput) => {
     if (hookInput.hook_event_name !== "PreToolUse") return { continue: true };
     const toolName = hookInput.tool_name;
-    if (!allowed.has(toolName)) {
-      const reason = `Tool ${toolName} is not in allowlist`;
+    const ownName = registryNameFromMcp(toolName);
+    const allowed =
+      ownName === undefined
+        ? builtinAllowed.has(toolName)
+        : stepToolNames.has(ownName);
+    if (!allowed) {
+      const reason =
+        ownName === undefined
+          ? `Tool ${toolName} is not in allowlist`
+          : `Tool ${toolName} is not allowed on step ${input.step}`;
       denials.push({ toolName, reason });
       ctx.emit({ type: "tool_denied", toolName, reason });
       return {
@@ -111,7 +133,7 @@ export const runAgent = async (
 
     options: {
       systemPrompt: input.systemPrompt,
-      allowedTools: input.allowedTools,
+      allowedTools,
       model: input.model,
       maxTurns: input.maxTurns,
       maxBudgetUsd: input.budgetUsd,
@@ -126,7 +148,9 @@ export const runAgent = async (
         SubagentStart: [{ hooks: [onSubagentStart] }],
         SubagentStop: [{ hooks: [onSubagentStop] }],
       },
-      mcpServers: {},
+      mcpServers: {
+        [SERVER_NAME]: createToolServer(stepTools, ctx.abortController.signal),
+      },
     },
   });
   let lastResult: SDKResultMessage | undefined;
