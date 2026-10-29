@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import type { SDKMessage, query } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { defineTool } from "../tools/define-tool";
-import { mcpToolName } from "../tools/mcp-server";
-import { registerTool, unregisterTool } from "../tools/registry";
+import { mcpToolName, sdkHandler } from "../tools/mcp-server";
+import { getTool, registerTool, unregisterTool } from "../tools/registry";
 import { runAgent, AgentRunError } from "./run-agent";
 
 const baseInput = {
@@ -61,6 +61,23 @@ function fakeQuery(
 const ctx = () => ({ emit: vi.fn(), abortController: new AbortController() });
 
 describe("runAgent", () => {
+  it("невалидный вход инструмента не роняет прогон", async () => {
+    const c = ctx();
+    const toolResults: unknown[] = [];
+    const q = ((args: Parameters<typeof query>[0]) =>
+      (async function* () {
+        const echoTool = getTool("echo");
+        const signal = args.options?.abortController?.signal ?? c.abortController.signal;
+        if (!echoTool) throw new Error("echo is not registered");
+        toolResults.push(await sdkHandler(echoTool, signal)({}));
+        yield result({ result: "done" });
+      })()) as unknown as typeof query;
+
+    const r = await runAgent(baseInput, c, q);
+    expect(toolResults[0]).toMatchObject({ isError: true });
+    expect(r.text).toBe("done");
+  });
+
   it("запрещает write-инструмент на read-only шаге", async () => {
     const save = defineTool({
       name: "save",
