@@ -16,11 +16,12 @@ async function main() {
       model: "claude-haiku-4-5",
       maxTurns: 2,
       budgetUsd: 0.02,
+      step: "intake",
     },
     { emit, abortController: ac },
   );
-  if (!started || started.mcpServerCount !== 0)
-    throw new Error("smoke: MCP servers must be empty");
+  if (!started || started.mcpServerCount !== 1)
+    throw new Error("smoke: expected the threadline MCP server");
 
   console.log(`cost=$${r.costUsd.toFixed(4)} turns=${r.numTurns}`);
   if (r.costUsd >= 0.02) throw new Error(`smoke: cost $${r.costUsd} >= $0.02`);

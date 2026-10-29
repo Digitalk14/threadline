@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-type ToolResult = {
+export type ToolResult = {
   content: string;
+  isError?: boolean;
 };
 
 export type ToolContext = {
@@ -14,4 +15,12 @@ export type Tool<Input> = {
   category: "read" | "write";
   parameters: z.ZodType<Input>;
   handler: (params: Input, ctx: ToolContext) => Promise<ToolResult>;
+};
+
+export type RegisteredTool = Pick<
+  Tool<unknown>,
+  "name" | "description" | "category"
+> & {
+  parameters: z.ZodType;
+  call: (raw: unknown, ctx: ToolContext) => Promise<ToolResult>;
 };

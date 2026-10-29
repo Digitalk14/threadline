@@ -10,7 +10,7 @@ export const echo: Tool<z.infer<typeof echoSchema>> = {
   description: "Echo the input text",
   category: "read",
   parameters: echoSchema,
-  handler: async ({ text }, _) => {
+  handler: async ({ text }) => {
     return { content: text };
   },
 };

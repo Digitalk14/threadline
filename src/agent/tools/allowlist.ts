@@ -1,13 +1,19 @@
-import { listTools, getTool } from "./registry";
+import { getTool, listTools } from "./registry";
 
-const readOnlySteps = new Set(["intake", "analysis"]);
+export const STEPS = ["intake", "analysis"] as const;
+export type Step = (typeof STEPS)[number];
 
-export const getAllowlist = (step: string) => {
-  if (!readOnlySteps.has(step)) return [];
-  return listTools().filter((tool) => tool.category === "read");
+const readOnlySteps = new Set<Step>(["intake", "analysis"]);
+
+export const getAllowlist = (step: Step) => {
+  const tools = listTools();
+  if (readOnlySteps.has(step)) {
+    return tools.filter((tool) => tool.category === "read");
+  }
+  return tools;
 };
 
-export const canCall = (toolName: string, step: string) => {
+export const canCall = (toolName: string, step: Step) => {
   const tool = getTool(toolName);
   if (!tool) return false;
   return getAllowlist(step).some((allowed) => allowed.name === tool.name);

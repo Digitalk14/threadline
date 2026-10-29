@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SDKMessage, query } from "@anthropic-ai/claude-agent-sdk";
+import { z } from "zod";
+import { defineTool } from "../tools/define-tool";
+import { mcpToolName } from "../tools/mcp-server";
+import { registerTool, unregisterTool } from "../tools/registry";
 import { runAgent, AgentRunError } from "./run-agent";
 
 const baseInput = {
@@ -8,6 +12,7 @@ const baseInput = {
   allowedTools: ["Read"],
   model: "claude-haiku-4-5",
   maxTurns: 3,
+  step: "intake" as const,
 };
 
 const result = (over: Partial<Record<string, unknown>> = {}) =>
@@ -56,6 +61,29 @@ function fakeQuery(
 const ctx = () => ({ emit: vi.fn(), abortController: new AbortController() });
 
 describe("runAgent", () => {
+  it("запрещает write-инструмент на read-only шаге", async () => {
+    const save = defineTool({
+      name: "save",
+      description: "Сохраняет текст",
+      category: "write",
+      parameters: z.object({ text: z.string() }),
+      handler: async ({ text }) => ({ content: text }),
+    });
+    registerTool(save);
+    try {
+      const r = await runAgent(
+        baseInput,
+        ctx(),
+        fakeQuery([result()], { toolCall: mcpToolName("save") }),
+      );
+      expect(r.denials).toEqual([
+        { toolName: mcpToolName("save"), reason: expect.any(String) },
+      ]);
+    } finally {
+      unregisterTool(save.name);
+    }
+  });
+
   it("запрещает инструмент вне allowlist и пишет в denials", async () => {
     const r = await runAgent(
       baseInput,
@@ -171,11 +199,11 @@ describe("runAgent", () => {
     expect(options).toMatchObject({
       permissionMode: "dontAsk",
       settingSources: [],
-      mcpServers: {},
       tools: ["Read"],
-      allowedTools: ["Read"],
+      allowedTools: ["Read", mcpToolName("echo")],
       maxBudgetUsd: 0.5,
     });
+    expect(options?.mcpServers).toHaveProperty("threadline");
     expect(options?.abortController).toBe(c.abortController);
     expect(options?.hooks?.PreToolUse).toHaveLength(1);
   });
