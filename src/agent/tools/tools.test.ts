@@ -48,6 +48,33 @@ describe("tools", () => {
     await expect(handler({})).resolves.toMatchObject({ isError: true });
   });
 
+  it("свой AbortError без отмены прогона — tool result", async () => {
+    const timeout = defineTool({
+      name: "timeout",
+      description: "Таймаут",
+      category: "read",
+      parameters: z.object({ text: z.string() }),
+      handler: async () => {
+        throw Object.assign(new Error("timeout"), { name: "AbortError" });
+      },
+    });
+    await expect(timeout.call({ text: "x" }, ctx)).resolves.toEqual({
+      content: "timeout",
+      isError: true,
+    });
+  });
+
+  it("схема не-объект отклоняется при регистрации", () => {
+    const bad = defineTool({
+      name: "bad",
+      description: "Не объект",
+      category: "read",
+      parameters: z.string(),
+      handler: async (text) => ({ content: text }),
+    });
+    expect(() => registerTool(bad)).toThrow(/z\.object/);
+  });
+
   it("ошибка обработчика возвращается как tool result, отмена — нет", async () => {
     const failing = defineTool({
       name: "failing",

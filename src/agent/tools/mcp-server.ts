@@ -1,6 +1,5 @@
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { getAllowlist, type Step } from "./allowlist";
 import type { RegisteredTool, ToolContext, ToolResult } from "./types";
 
 export const SERVER_NAME = "threadline";
@@ -47,8 +46,11 @@ export function sdkHandler(agentTool: RegisteredTool, runSignal: AbortSignal) {
   };
 }
 
-export function createToolServer(step: Step, runSignal: AbortSignal) {
-  const tools = getAllowlist(step).map((agentTool) =>
+export function createToolServer(
+  agentTools: readonly RegisteredTool[],
+  runSignal: AbortSignal,
+) {
+  const tools = agentTools.map((agentTool) =>
     tool(
       agentTool.name,
       agentTool.description,

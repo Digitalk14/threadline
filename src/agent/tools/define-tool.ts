@@ -5,11 +5,6 @@ export type DefinedTool<Input> = Tool<Input> & {
   call: (raw: unknown, ctx: ToolContext) => Promise<ToolResult>;
 };
 
-function isAbort(err: unknown, signal: AbortSignal): boolean {
-  if (signal.aborted) return true;
-  return err instanceof Error && err.name === "AbortError";
-}
-
 export const defineTool = <Input>(tool: Tool<Input>): DefinedTool<Input> => {
   return {
     ...tool,
@@ -21,7 +16,7 @@ export const defineTool = <Input>(tool: Tool<Input>): DefinedTool<Input> => {
       try {
         return await tool.handler(parsed.data, ctx);
       } catch (err) {
-        if (isAbort(err, ctx.signal)) throw err;
+        if (ctx.signal.aborted) throw err;
         const content = err instanceof Error ? err.message : String(err);
         return { content, isError: true };
       }

@@ -4,7 +4,7 @@ import {
   type SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { canCall, getAllowlist, STEPS } from "../tools/allowlist";
+import { getAllowlist, STEPS } from "../tools/allowlist";
 import {
   createToolServer,
   mcpToolName,
@@ -77,11 +77,13 @@ export const runAgent = async (
   const input = AgentInputSchema.parse(rawInput);
 
   const denials: Denial[] = [];
+  const stepTools = getAllowlist(input.step);
+  const stepToolNames = new Set(stepTools.map((agentTool) => agentTool.name));
   const builtinAllowed = new Set(input.allowedTools);
-  const mcpNames = getAllowlist(input.step).map((agentTool) =>
-    mcpToolName(agentTool.name),
-  );
-  const allowedTools = [...input.allowedTools, ...mcpNames];
+  const allowedTools = [
+    ...input.allowedTools,
+    ...stepTools.map((agentTool) => mcpToolName(agentTool.name)),
+  ];
 
   const onSubagentStart: HookCallback = async (h) => {
     if (h.hook_event_name === "SubagentStart") {
@@ -103,7 +105,7 @@ export const runAgent = async (
     const allowed =
       ownName === undefined
         ? builtinAllowed.has(toolName)
-        : canCall(ownName, input.step);
+        : stepToolNames.has(ownName);
     if (!allowed) {
       const reason =
         ownName === undefined
@@ -147,10 +149,7 @@ export const runAgent = async (
         SubagentStop: [{ hooks: [onSubagentStop] }],
       },
       mcpServers: {
-        [SERVER_NAME]: createToolServer(
-          input.step,
-          ctx.abortController.signal,
-        ),
+        [SERVER_NAME]: createToolServer(stepTools, ctx.abortController.signal),
       },
     },
   });
