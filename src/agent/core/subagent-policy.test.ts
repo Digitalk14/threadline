@@ -4,7 +4,7 @@ import { decideSubagentCall } from "./subagent-policy";
 const allowed = new Set(["Research", "Code"]);
 
 describe("decideSubagentCall", () => {
-  it("отклоняет вход, который не является объектом", () => {
+  it("deny input that is not an object", () => {
     expect(decideSubagentCall("Research", allowed)).toEqual({
       kind: "deny",
       reason: "Invalid input",
@@ -19,7 +19,7 @@ describe("decideSubagentCall", () => {
     });
   });
 
-  it("отклоняет отсутствующий или нестроковый subagent_type", () => {
+  it("deny missing or non-string subagent_type", () => {
     expect(
       decideSubagentCall({ prompt: "посмотри тикет" }, allowed),
     ).toEqual({
@@ -32,7 +32,7 @@ describe("decideSubagentCall", () => {
     });
   });
 
-  it("отклоняет тип, которого нет в списке, и называет его в причине", () => {
+  it("deny type that is not in the allowed list and name it in the reason", () => {
     expect(
       decideSubagentCall(
         { subagent_type: "Explore", prompt: "найди файлы" },
@@ -44,7 +44,7 @@ describe("decideSubagentCall", () => {
     });
   });
 
-  it("отклоняет любой тип, если список разрешённых пуст", () => {
+  it("deny any type if allowed types list is empty", () => {
     expect(
       decideSubagentCall({ subagent_type: "Research" }, new Set()),
     ).toEqual({
@@ -53,7 +53,7 @@ describe("decideSubagentCall", () => {
     });
   });
 
-  it("разрешает известный тип и выключает фон, сохраняя остальные поля", () => {
+  it("allows known type and disables background, preserving other fields", () => {
     expect(
       decideSubagentCall(
         {

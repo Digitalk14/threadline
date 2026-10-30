@@ -2,8 +2,6 @@ type SubagentDecision =
   | { kind: "deny"; reason: string }
   | { kind: "allow"; input: Record<string, unknown> };
 
-// const allowedTypes = new Set(["Research", "Code"]);
-
 export const decideSubagentCall = (
   toolInput: unknown,
   allowedTypes: ReadonlySet<string>,
@@ -33,17 +31,16 @@ export const decideSubagentCall = (
     };
   }
 
-  if ("isolation" in toolInput && toolInput.isolation === "remote") {
-    return {
-      kind: "deny",
-      reason: "Remote isolation is not allowed",
-    };
-  }
-
-  const safeInput = {
-    ...toolInput,
+  const { description, prompt, subagent_type, name } = toolInput as Record<
+    string,
+    unknown
+  >;
+  const safeInput: Record<string, unknown> = {
+    description,
+    prompt,
+    subagent_type,
+    ...(typeof name === "string" ? { name } : {}),
     run_in_background: false,
   };
-
   return { kind: "allow", input: safeInput };
 };
