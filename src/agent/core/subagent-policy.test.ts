@@ -1,0 +1,156 @@
+import { describe, expect, it } from "vitest";
+import { decideSubagentCall } from "./subagent-policy";
+
+const allowed = new Set(["Research", "Code"]);
+
+describe("decideSubagentCall", () => {
+  it("deny input that is not an object", () => {
+    for (const toolInput of ["Research", null, ["Research"], 1, false]) {
+      expect(decideSubagentCall(toolInput, allowed)).toEqual({
+        kind: "deny",
+        reason: "Invalid input",
+      });
+    }
+  });
+
+  it("deny missing or non-string subagent_type", () => {
+    expect(
+      decideSubagentCall({ prompt: "посмотри тикет" }, allowed),
+    ).toEqual({
+      kind: "deny",
+      reason: "Missing or invalid subagent_type",
+    });
+    expect(decideSubagentCall({ subagent_type: 1 }, allowed)).toEqual({
+      kind: "deny",
+      reason: "Missing or invalid subagent_type",
+    });
+  });
+
+  it("deny type that is not in the allowed list and name it in the reason", () => {
+    expect(
+      decideSubagentCall(
+        { subagent_type: "Explore", prompt: "найди файлы" },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "deny",
+      reason: "Unknown subagent type: Explore",
+    });
+  });
+
+  it("deny any type if allowed types list is empty", () => {
+    expect(
+      decideSubagentCall({ subagent_type: "Research" }, new Set()),
+    ).toEqual({
+      kind: "deny",
+      reason: "Unknown subagent type: Research",
+    });
+  });
+
+  it("preserves model and effort while forcing foreground", () => {
+    expect(
+      decideSubagentCall(
+        {
+          subagent_type: "Research",
+          prompt: "собери контекст",
+          description: "контекст тикета",
+          model: "haiku",
+          effort: "high",
+          name: "ticket-research",
+          run_in_background: true,
+          mode: "bypassPermissions",
+        },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "allow",
+      input: {
+        subagent_type: "Research",
+        prompt: "собери контекст",
+        description: "контекст тикета",
+        model: "haiku",
+        effort: "high",
+        name: "ticket-research",
+        run_in_background: false,
+      },
+    });
+  });
+
+  it("allows known type and disables background, preserving other fields", () => {
+    expect(
+      decideSubagentCall(
+        {
+          subagent_type: "Research",
+          prompt: "собери контекст",
+          description: "контекст тикета",
+          model: "haiku",
+          run_in_background: true,
+        },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "allow",
+      input: {
+        subagent_type: "Research",
+        prompt: "собери контекст",
+        description: "контекст тикета",
+        model: "haiku",
+        run_in_background: false,
+      },
+    });
+  });
+
+  it("выключает фон, даже если поле не передано", () => {
+    const decision = decideSubagentCall(
+      { subagent_type: "Code", prompt: "поправь тест" },
+      allowed,
+    );
+    expect(decision).toEqual({
+      kind: "allow",
+      input: {
+        subagent_type: "Code",
+        prompt: "поправь тест",
+        run_in_background: false,
+      },
+    });
+  });
+
+  it("оставляет уже выключенный фон выключенным", () => {
+    const decision = decideSubagentCall(
+      { subagent_type: "Code", run_in_background: false },
+      allowed,
+    );
+    expect(decision).toMatchObject({
+      kind: "allow",
+      input: { run_in_background: false },
+    });
+  });
+
+  it("отклоняет remote, даже если тип разрешён", () => {
+    expect(
+      decideSubagentCall(
+        { subagent_type: "Research", isolation: "remote" },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "deny",
+      reason: "Remote isolation is not allowed",
+    });
+  });
+
+  it("пропускает worktree: это изоляция файлов, а не фоновый запуск", () => {
+    expect(
+      decideSubagentCall(
+        { subagent_type: "Research", isolation: "worktree" },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "allow",
+      input: {
+        subagent_type: "Research",
+        isolation: "worktree",
+        run_in_background: false,
+      },
+    });
+  });
+});
