@@ -5,18 +5,12 @@ const allowed = new Set(["Research", "Code"]);
 
 describe("decideSubagentCall", () => {
   it("deny input that is not an object", () => {
-    expect(decideSubagentCall("Research", allowed)).toEqual({
-      kind: "deny",
-      reason: "Invalid input",
-    });
-    expect(decideSubagentCall(null, allowed)).toEqual({
-      kind: "deny",
-      reason: "Invalid input",
-    });
-    expect(decideSubagentCall(["Research"], allowed)).toEqual({
-      kind: "deny",
-      reason: "Invalid input",
-    });
+    for (const toolInput of ["Research", null, ["Research"], 1, false]) {
+      expect(decideSubagentCall(toolInput, allowed)).toEqual({
+        kind: "deny",
+        reason: "Invalid input",
+      });
+    }
   });
 
   it("deny missing or non-string subagent_type", () => {
@@ -50,6 +44,35 @@ describe("decideSubagentCall", () => {
     ).toEqual({
       kind: "deny",
       reason: "Unknown subagent type: Research",
+    });
+  });
+
+  it("preserves model and effort while forcing foreground", () => {
+    expect(
+      decideSubagentCall(
+        {
+          subagent_type: "Research",
+          prompt: "собери контекст",
+          description: "контекст тикета",
+          model: "haiku",
+          effort: "high",
+          name: "ticket-research",
+          run_in_background: true,
+          mode: "bypassPermissions",
+        },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "allow",
+      input: {
+        subagent_type: "Research",
+        prompt: "собери контекст",
+        description: "контекст тикета",
+        model: "haiku",
+        effort: "high",
+        name: "ticket-research",
+        run_in_background: false,
+      },
     });
   });
 

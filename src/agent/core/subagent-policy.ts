@@ -31,16 +31,28 @@ export const decideSubagentCall = (
     };
   }
 
-  const { description, prompt, subagent_type, name } = toolInput as Record<
-    string,
-    unknown
-  >;
+  if ("isolation" in toolInput && toolInput.isolation === "remote") {
+    return {
+      kind: "deny",
+      reason: "Remote isolation is not allowed",
+    };
+  }
+
+  const raw = toolInput as Record<string, unknown>;
   const safeInput: Record<string, unknown> = {
-    description,
-    prompt,
-    subagent_type,
-    ...(typeof name === "string" ? { name } : {}),
+    subagent_type: toolInput.subagent_type,
     run_in_background: false,
   };
+  for (const key of [
+    "description",
+    "prompt",
+    "model",
+    "effort",
+    "isolation",
+  ] as const) {
+    if (raw[key] !== undefined) safeInput[key] = raw[key];
+  }
+  if (typeof raw.name === "string") safeInput.name = raw.name;
+
   return { kind: "allow", input: safeInput };
 };

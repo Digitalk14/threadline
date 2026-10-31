@@ -2,6 +2,7 @@ import {
   query,
   type HookCallback,
   type SDKResultMessage,
+  type AgentDefinition,
 } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { getAllowlist, STEPS } from "../tools/allowlist";
@@ -12,6 +13,7 @@ import {
   SERVER_NAME,
 } from "../tools/mcp-server";
 import { toEvents, type AgentEvent } from "./events";
+import { decideSubagentCall } from "./subagent-policy";
 
 export const AgentInputSchema = z.object({
   prompt: z.string().min(1),
@@ -23,6 +25,23 @@ export const AgentInputSchema = z.object({
   cwd: z.string().optional(),
   resumeSessionId: z.string().optional(),
   step: z.enum(STEPS),
+  agents: z
+    .record(
+      z.string(),
+      z.object({
+        description: z.string(),
+        prompt: z.string(),
+        tools: z.array(z.string()),
+        model: z.string().optional(),
+        effort: z
+          .union([
+            z.enum(["low", "medium", "high", "xhigh", "max"]),
+            z.number(),
+          ])
+          .optional(),
+      }),
+    )
+    .optional(),
 });
 export type AgentInput = z.infer<typeof AgentInputSchema>;
 
@@ -75,6 +94,7 @@ export const runAgent = async (
   queryFn: typeof query = query,
 ): Promise<RunResult> => {
   const input = AgentInputSchema.parse(rawInput);
+  const allowedAgentTypes = new Set(Object.keys(input.agents ?? {}));
 
   const denials: Denial[] = [];
   const stepTools = getAllowlist(input.step);
@@ -84,6 +104,14 @@ export const runAgent = async (
     ...input.allowedTools,
     ...stepTools.map((agentTool) => mcpToolName(agentTool.name)),
   ];
+  const parentToolSet = new Set(allowedTools);
+  const agents: Record<string, AgentDefinition> = {};
+  Object.entries(input.agents || {}).forEach(([key, value]) => {
+    agents[key] = {
+      ...value,
+      tools: value.tools.filter((tool) => parentToolSet.has(tool)),
+    };
+  });
 
   const onSubagentStart: HookCallback = async (h) => {
     if (h.hook_event_name === "SubagentStart") {
@@ -121,6 +149,44 @@ export const runAgent = async (
         },
       };
     }
+    if (toolName === "Agent") {
+      const subagentCall = decideSubagentCall(
+        hookInput.tool_input,
+        allowedAgentTypes,
+      );
+      if (subagentCall.kind === "deny") {
+        denials.push({
+          toolName,
+          reason: subagentCall.reason,
+        });
+
+        ctx.emit({
+          type: "tool_denied",
+          toolName,
+          reason: subagentCall.reason,
+        });
+        return {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: subagentCall.reason,
+          },
+        };
+      } else {
+        ctx.emit({
+          type: "tool_call",
+          toolName,
+          input: pickSafeToolInput(hookInput.tool_input),
+        });
+        return {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "allow",
+            updatedInput: subagentCall.input,
+          },
+        };
+      }
+    }
     ctx.emit({
       type: "tool_call",
       toolName,
@@ -130,7 +196,6 @@ export const runAgent = async (
   };
   const agentStream = queryFn({
     prompt: input.prompt,
-
     options: {
       systemPrompt: input.systemPrompt,
       allowedTools,
@@ -151,6 +216,7 @@ export const runAgent = async (
       mcpServers: {
         [SERVER_NAME]: createToolServer(stepTools, ctx.abortController.signal),
       },
+      agents: agents,
     },
   });
   let lastResult: SDKResultMessage | undefined;
