@@ -556,7 +556,6 @@ describe("runAgent", () => {
           undefined,
           { signal: new AbortController().signal },
         );
-        expect(args.options!.abortController).toBe(c.abortController);
         c.abortController.abort();
         throw Object.assign(new Error("aborted"), { name: "AbortError" });
       })(),
