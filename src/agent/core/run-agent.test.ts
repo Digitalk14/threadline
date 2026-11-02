@@ -393,8 +393,6 @@ describe("runAgent", () => {
         subagent_type: "Research",
         prompt: "собери контекст",
         description: "контекст тикета",
-        model: "haiku",
-        effort: "high",
         run_in_background: false,
       },
     });
@@ -402,7 +400,7 @@ describe("runAgent", () => {
     expect(seen.emit).toHaveBeenCalledWith({
       type: "tool_call",
       toolName: "Agent",
-      input: {},
+      input: { subagent_type: "Research" },
     });
     expect(seen.emit).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "tool_denied" }),
@@ -444,6 +442,7 @@ describe("runAgent", () => {
   it("denies isolation remote so it cannot start a background subagent", async () => {
     const seen = await runHook(inputWithAgents, "Agent", {
       subagent_type: "Research",
+      description: "контекст",
       prompt: "run remotely",
       isolation: "remote",
       run_in_background: true,
@@ -451,15 +450,15 @@ describe("runAgent", () => {
     expect(seen.decision.hookSpecificOutput).toEqual({
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
-      permissionDecisionReason: "Remote isolation is not allowed",
+      permissionDecisionReason: "Isolation is not allowed: remote",
     });
     expect(seen.run.denials).toEqual([
-      { toolName: "Agent", reason: "Remote isolation is not allowed" },
+      { toolName: "Agent", reason: "Isolation is not allowed: remote" },
     ]);
     expect(seen.emit).toHaveBeenCalledWith({
       type: "tool_denied",
       toolName: "Agent",
-      reason: "Remote isolation is not allowed",
+      reason: "Isolation is not allowed: remote",
     });
   });
 
@@ -514,5 +513,60 @@ describe("runAgent", () => {
       permissionDecisionReason: "Tool Agent is not in allowlist",
     });
     expect(seen.decision.hookSpecificOutput?.updatedInput).toBeUndefined();
+  });
+
+  it("subagent spend counts against the run budget", async () => {
+    const c = ctx();
+    const spy = vi.fn((args: Parameters<typeof query>[0]) =>
+      (async function* () {
+        const start = args.options!.hooks!.SubagentStart![0].hooks[0];
+        await start(
+          {
+            hook_event_name: "SubagentStart",
+            agent_id: "a1",
+            agent_type: "Research",
+          } as never,
+          undefined,
+          { signal: new AbortController().signal },
+        );
+        yield result({ subtype: "error_max_budget_usd", total_cost_usd: 0.52 });
+      })(),
+    );
+    await expect(
+      runAgent(inputWithAgents, c, spy as unknown as typeof query),
+    ).rejects.toMatchObject({ reason: "budget_exceeded", costUsd: 0.52 });
+    expect(spy.mock.calls[0][0].options!.maxBudgetUsd).toBe(0.5);
+    expect(c.emit).toHaveBeenCalledWith({
+      type: "subagent_started",
+      name: "Research",
+    });
+  });
+
+  it("parent abort stops a running subagent", async () => {
+    const c = ctx();
+    const spy = vi.fn((args: Parameters<typeof query>[0]) =>
+      (async function* () {
+        const start = args.options!.hooks!.SubagentStart![0].hooks[0];
+        await start(
+          {
+            hook_event_name: "SubagentStart",
+            agent_id: "a1",
+            agent_type: "Research",
+          } as never,
+          undefined,
+          { signal: new AbortController().signal },
+        );
+        expect(args.options!.abortController).toBe(c.abortController);
+        c.abortController.abort();
+        throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      })(),
+    );
+    await expect(
+      runAgent(inputWithAgents, c, spy as unknown as typeof query),
+    ).rejects.toMatchObject({ reason: "cancelled" });
+    expect(c.emit).toHaveBeenCalledWith({ type: "run_cancelled" });
+    expect(c.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "subagent_done" }),
+    );
   });
 });

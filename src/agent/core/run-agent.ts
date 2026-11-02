@@ -176,7 +176,7 @@ export const runAgent = async (
         ctx.emit({
           type: "tool_call",
           toolName,
-          input: pickSafeToolInput(hookInput.tool_input),
+          input: { subagent_type: String(subagentCall.input.subagent_type) },
         });
         return {
           hookSpecificOutput: {
@@ -201,6 +201,9 @@ export const runAgent = async (
       allowedTools,
       model: input.model,
       maxTurns: input.maxTurns,
+      // total_cost_usd matches modelUsage for this query() call, which includes
+      // Task subagents. usage excludes them. maxBudgetUsd therefore already
+      // counts foreground subagent spend.
       maxBudgetUsd: input.budgetUsd,
       cwd: input.cwd,
       resume: input.resumeSessionId,

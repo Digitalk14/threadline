@@ -31,28 +31,26 @@ export const decideSubagentCall = (
     };
   }
 
-  if ("isolation" in toolInput && toolInput.isolation === "remote") {
+  const raw = toolInput as Record<string, unknown>;
+  const { description, prompt, name, isolation } = raw;
+  if (typeof description !== "string" || typeof prompt !== "string") {
+    return { kind: "deny", reason: "Missing or invalid description/prompt" };
+  }
+
+  if (isolation !== undefined && isolation !== "worktree") {
     return {
       kind: "deny",
-      reason: "Remote isolation is not allowed",
+      reason: `Isolation is not allowed: ${String(isolation)}`,
     };
   }
 
-  const raw = toolInput as Record<string, unknown>;
   const safeInput: Record<string, unknown> = {
+    description,
+    prompt,
     subagent_type: toolInput.subagent_type,
+    ...(typeof name === "string" ? { name } : {}),
+    ...(isolation === "worktree" ? { isolation } : {}),
     run_in_background: false,
   };
-  for (const key of [
-    "description",
-    "prompt",
-    "model",
-    "effort",
-    "isolation",
-  ] as const) {
-    if (raw[key] !== undefined) safeInput[key] = raw[key];
-  }
-  if (typeof raw.name === "string") safeInput.name = raw.name;
-
   return { kind: "allow", input: safeInput };
 };

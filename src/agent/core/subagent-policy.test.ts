@@ -47,15 +47,15 @@ describe("decideSubagentCall", () => {
     });
   });
 
-  it("preserves model and effort while forcing foreground", () => {
+  it("drops model and effort overrides while forcing foreground", () => {
     expect(
       decideSubagentCall(
         {
           subagent_type: "Research",
           prompt: "собери контекст",
           description: "контекст тикета",
-          model: "haiku",
-          effort: "high",
+          model: "opus",
+          effort: "max",
           name: "ticket-research",
           run_in_background: true,
           mode: "bypassPermissions",
@@ -68,15 +68,13 @@ describe("decideSubagentCall", () => {
         subagent_type: "Research",
         prompt: "собери контекст",
         description: "контекст тикета",
-        model: "haiku",
-        effort: "high",
         name: "ticket-research",
         run_in_background: false,
       },
     });
   });
 
-  it("allows known type and disables background, preserving other fields", () => {
+  it("allows known type, disables background and drops non-whitelisted fields", () => {
     expect(
       decideSubagentCall(
         {
@@ -94,21 +92,46 @@ describe("decideSubagentCall", () => {
         subagent_type: "Research",
         prompt: "собери контекст",
         description: "контекст тикета",
-        model: "haiku",
         run_in_background: false,
       },
     });
   });
 
+  it("deny missing description or prompt", () => {
+    expect(
+      decideSubagentCall(
+        { subagent_type: "Research", prompt: "p" },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "deny",
+      reason: "Missing or invalid description/prompt",
+    });
+    expect(
+      decideSubagentCall(
+        { subagent_type: "Research", description: "d" },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "deny",
+      reason: "Missing or invalid description/prompt",
+    });
+  });
+
   it("выключает фон, даже если поле не передано", () => {
     const decision = decideSubagentCall(
-      { subagent_type: "Code", prompt: "поправь тест" },
+      {
+        subagent_type: "Code",
+        description: "правка",
+        prompt: "поправь тест",
+      },
       allowed,
     );
     expect(decision).toEqual({
       kind: "allow",
       input: {
         subagent_type: "Code",
+        description: "правка",
         prompt: "поправь тест",
         run_in_background: false,
       },
@@ -117,37 +140,76 @@ describe("decideSubagentCall", () => {
 
   it("оставляет уже выключенный фон выключенным", () => {
     const decision = decideSubagentCall(
-      { subagent_type: "Code", run_in_background: false },
+      {
+        subagent_type: "Code",
+        description: "правка",
+        prompt: "поправь тест",
+        run_in_background: false,
+      },
       allowed,
     );
-    expect(decision).toMatchObject({
+    expect(decision).toEqual({
       kind: "allow",
-      input: { run_in_background: false },
+      input: {
+        subagent_type: "Code",
+        description: "правка",
+        prompt: "поправь тест",
+        run_in_background: false,
+      },
     });
   });
 
   it("отклоняет remote, даже если тип разрешён", () => {
     expect(
       decideSubagentCall(
-        { subagent_type: "Research", isolation: "remote" },
+        {
+          subagent_type: "Research",
+          description: "контекст",
+          prompt: "собери контекст",
+          isolation: "remote",
+        },
         allowed,
       ),
     ).toEqual({
       kind: "deny",
-      reason: "Remote isolation is not allowed",
+      reason: "Isolation is not allowed: remote",
+    });
+  });
+
+  it("denies isolation values other than worktree", () => {
+    expect(
+      decideSubagentCall(
+        {
+          subagent_type: "Research",
+          description: "контекст",
+          prompt: "собери контекст",
+          isolation: "cloud",
+        },
+        allowed,
+      ),
+    ).toEqual({
+      kind: "deny",
+      reason: "Isolation is not allowed: cloud",
     });
   });
 
   it("пропускает worktree: это изоляция файлов, а не фоновый запуск", () => {
     expect(
       decideSubagentCall(
-        { subagent_type: "Research", isolation: "worktree" },
+        {
+          subagent_type: "Research",
+          description: "контекст",
+          prompt: "собери контекст",
+          isolation: "worktree",
+        },
         allowed,
       ),
     ).toEqual({
       kind: "allow",
       input: {
         subagent_type: "Research",
+        description: "контекст",
+        prompt: "собери контекст",
         isolation: "worktree",
         run_in_background: false,
       },
