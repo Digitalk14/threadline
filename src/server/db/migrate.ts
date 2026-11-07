@@ -1,6 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
+import type Database from "better-sqlite3";
 import { db } from "./connection";
 
 const migrationsDir = path.join(process.cwd(), "src/server/db/migrations");
@@ -46,10 +47,10 @@ export const getMigrationFiles = (): string[] => {
   return migrations.map((migration) => migration.file);
 };
 
-export const migrate = () => {
+export const migrate = (database: Database.Database = db) => {
   const migrationFiles = getMigrationFiles();
 
-  const currentVersion = db.pragma("user_version", {
+  const currentVersion = database.pragma("user_version", {
     simple: true,
   }) as number;
 
@@ -73,9 +74,9 @@ export const migrate = () => {
     const version = Number.parseInt(file.split("_")[0], 10);
     const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
 
-    const transaction = db.transaction(() => {
-      db.exec(sql);
-      db.pragma(`user_version = ${version}`);
+    const transaction = database.transaction(() => {
+      database.exec(sql);
+      database.pragma(`user_version = ${version}`);
     });
 
     transaction();
