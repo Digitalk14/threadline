@@ -2,7 +2,6 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
-import { db } from "./connection";
 
 const migrationsDir = path.join(process.cwd(), "src/server/db/migrations");
 
@@ -47,7 +46,7 @@ export const getMigrationFiles = (): string[] => {
   return migrations.map((migration) => migration.file);
 };
 
-export const migrate = (database: Database.Database = db) => {
+export const migrate = (database: Database.Database) => {
   const migrationFiles = getMigrationFiles();
 
   const currentVersion = database.pragma("user_version", {

@@ -292,16 +292,16 @@ try {
     "What should we do?",
     "agent",
     "user",
-    "not-valid-json",
+    "confluence",
     "https://example.com",
     "open",
     new Date().toISOString(),
     new Date().toISOString(),
   );
 
-  console.log("Unexpected: invalid JSON was inserted");
+  console.log("Unexpected: invalid source was inserted");
 } catch (error) {
-  console.log("JSON constraint correctly rejected invalid source:", error);
+  console.log("Source enum CHECK rejected invalid source:", error);
 }
 
 db.close();

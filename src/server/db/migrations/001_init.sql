@@ -58,7 +58,7 @@ CREATE TABLE questions (
   text TEXT NOT NULL,
   asked_by TEXT NOT NULL,
   waiting_on TEXT NOT NULL,
-  source TEXT NOT NULL CHECK (json_valid(source)),
+  source TEXT NOT NULL CHECK (source IN ('jira', 'slack', 'gitlab')),
   source_url TEXT NOT NULL,
   status TEXT NOT NULL CHECK (
     status IN ('open', 'answered', 'superseded')

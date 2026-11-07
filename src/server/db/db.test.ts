@@ -80,6 +80,61 @@ describe("migrate", () => {
 
     database.close();
   });
+
+  it("rejects invalid question source values", () => {
+    const database = createMemoryDb();
+    const now = new Date().toISOString();
+
+    database
+      .prepare(
+        `INSERT INTO tickets (id, title, phase, updated_at) VALUES (?, ?, ?, ?)`,
+      )
+      .run("PROJ-9", "Test", "new", now);
+
+    expect(() =>
+      database
+        .prepare(
+          `INSERT INTO questions (
+             ticket_id, id, text, asked_by, waiting_on,
+             source, source_url, status, first_seen_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "PROJ-9",
+          "Q-1",
+          "Clarify scope",
+          "agent",
+          "user",
+          "confluence",
+          "https://example.com",
+          "open",
+          now,
+          now,
+        ),
+    ).toThrow();
+
+    database
+      .prepare(
+        `INSERT INTO questions (
+           ticket_id, id, text, asked_by, waiting_on,
+           source, source_url, status, first_seen_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "PROJ-9",
+        "Q-1",
+        "Clarify scope",
+        "agent",
+        "user",
+        "jira",
+        "https://example.com",
+        "open",
+        now,
+        now,
+      );
+
+    database.close();
+  });
 });
 
 describe("tickets repository", () => {
